@@ -36,8 +36,7 @@ type Item struct {
 }
 
 type Cache struct {
-	len int
-	m   map[string][]byte
+	m map[string][]byte
 }
 
 func NewCache() *Cache {
@@ -54,13 +53,11 @@ func (c *Cache) Get(key string) ([]byte, bool) {
 func (c *Cache) Set(key string, value []byte) {
 	zmalloc(len(value))
 	c.m[key] = value
-	c.len++
 }
 
 func (c *Cache) Del(key string) {
 	zfree(c.m[key])
 	delete(c.m, key)
-	c.len--
 }
 
 func (c *Cache) Clear() {
