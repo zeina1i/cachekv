@@ -1,38 +1,19 @@
 package cachekv
 
 var totalSize int
-var evictionPool []string
+var limit int = 100
 
-func zmalloc(size int) []byte {
-	if totalSize+size > 1000000000 {
+func addTotalSizeAndMayEvict(b []byte) {
+	size := len(b)
+	if totalSize+size > limit {
 		panic("out of memory")
 	}
 
 	totalSize += size
-
-	return make([]byte, size)
 }
 
-func zfree(b []byte) {
-	b = nil
-}
-
-func fillEvictionPool(c *Cache) {
-	sampleSize := 100
-	evictionPool = make([]string, sampleSize)
-
-	for k, _ := range c.m {
-		evictionPool = append(evictionPool, k)
-	}
-}
-
-func evict() {
-
-}
-
-type Item struct {
-	value   string
-	lastUse int64
+func freeTotalSize(b []byte) {
+	totalSize -= len(b)
 }
 
 type Cache struct {
@@ -51,12 +32,12 @@ func (c *Cache) Get(key string) ([]byte, bool) {
 }
 
 func (c *Cache) Set(key string, value []byte) {
-	zmalloc(len(value))
+	addTotalSizeAndMayEvict(value)
 	c.m[key] = value
 }
 
 func (c *Cache) Del(key string) {
-	zfree(c.m[key])
+	freeTotalSize(c.m[key])
 	delete(c.m, key)
 }
 
