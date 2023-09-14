@@ -26,7 +26,6 @@ func NewCache() *Cache {
 
 func (c *Cache) Get(key string) ([]byte, bool) {
 	v, ok := c.m[key]
-	// set last access time to now
 	v.lastAccessTime = time.Now().Unix()
 	return v.value, ok
 }
