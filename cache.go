@@ -1,46 +1,63 @@
 package cachekv
 
+import "time"
+
 var totalSize int
 var limit int = 100
 
-func addTotalSizeAndMayEvict(b []byte) {
-	size := len(b)
-	if totalSize+size > limit {
-		panic("out of memory")
-	}
-
-	totalSize += size
+type Item struct {
+	value          []byte
+	lastAccessTime int64
 }
-
-func freeTotalSize(b []byte) {
-	totalSize -= len(b)
-}
-
 type Cache struct {
-	m map[string][]byte
+	m map[string]Item
+	e *eviction
 }
 
 func NewCache() *Cache {
+	m := make(map[string]Item)
+	e := newEvictionPool()
+	e.fillPoolPeriodically(m)
 	return &Cache{
-		m: make(map[string][]byte),
+		m: m,
+		e: newEvictionPool(),
 	}
 }
 
 func (c *Cache) Get(key string) ([]byte, bool) {
 	v, ok := c.m[key]
-	return v, ok
+	// set last access time to now
+	v.lastAccessTime = time.Now().Unix()
+	return v.value, ok
 }
 
 func (c *Cache) Set(key string, value []byte) {
-	addTotalSizeAndMayEvict(value)
-	c.m[key] = value
+	item := Item{
+		value:          value,
+		lastAccessTime: 0,
+	}
+	c.addTotalSizeAndMayEvict(item.value)
+	c.m[key] = item
 }
 
 func (c *Cache) Del(key string) {
-	freeTotalSize(c.m[key])
+	c.freeTotalSize(c.m[key].value)
 	delete(c.m, key)
 }
 
 func (c *Cache) Clear() {
-	c.m = make(map[string][]byte)
+	c.m = make(map[string]Item)
+}
+
+func (c *Cache) addTotalSizeAndMayEvict(b []byte) {
+	size := len(b) + 8
+	for totalSize+size > limit {
+		c.e.evict()
+	}
+
+	totalSize += size
+}
+
+func (c *Cache) freeTotalSize(b []byte) {
+	totalSize -= len(b) - 8
 }
